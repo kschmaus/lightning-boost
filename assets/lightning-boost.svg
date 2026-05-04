@@ -1,0 +1,25 @@
+<svg width="600" height="600" viewBox="0 0 1544 4712" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- We define the snake half once so we can reuse it -->
+    <symbol id="snake-half" viewBox="133 1109 1278 2494">
+      <polygon points="774,3603 1411.0,2061.76 774.0,2061.76 1004.62,1503.76 1055.01,1381.84 872.70,1109.22 526.87,1109.22 526.87,1503.76 133.18,2456.29 774.0,2456.29" />
+      <circle cx="526.87" cy="1306.49" r="197.26" />
+      <circle cx="872.70" cy="1306.49" r="197.26" />
+    </symbol>
+
+    <!-- The mask for the eye hole -->
+    <mask id="eye-punchout" maskUnits="userSpaceOnUse">
+      <rect x="-2000" y="-2000" width="6000" height="8000" fill="white" />
+      <!-- This punches the hole in the right-most circle of the symbol -->
+      <circle cx="450" cy="1050" r="60" fill="black" />
+    </mask>
+  </defs>
+
+  <!-- 1. The original Yellow Shape -->
+  <use href="#snake-half" fill="#FFD343" mask="url(#eye-punchout)" />
+
+  <!-- 2. The Blue Shape: Rotated 180 degrees and shifted to nest -->
+  <!-- We rotate around the geometric center (772, 2356) -->
+  <use href="#snake-half" fill="#306998" mask="url(#eye-punchout)" 
+       transform="rotate(180, 772, 2356) translate(-774.5, 711)" />
+</svg>

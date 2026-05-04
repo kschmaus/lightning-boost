@@ -1,0 +1,195 @@
+# lightning-boost
+
+> Natural gradient boosting for probabilistic prediction, powered by LightGBM.
+
+lightning-boost is a Python library that faithfully implements the NGBoost
+algorithm using LightGBM as the base learner instead of sklearn decision
+stumps, providing up to 13x faster training while producing identical
+probabilistic predictions. It is sklearn-compatible and outputs full
+predictive distributions, not just point estimates.
+
+## Install
+
+```
+pip install lightning-boost
+pip install lightning-boost[plot]  # optional matplotlib support
+```
+
+Requires Python >= 3.11.
+
+## Core Estimators
+
+All estimators follow the sklearn API (fit/predict/score).
+
+### LightningBoostRegressor
+
+Probabilistic regression. Outputs a predicted distribution per sample.
+
+```python
+from lightning_boost import LightningBoostRegressor, Normal
+
+model = LightningBoostRegressor(
+    dist=Normal,           # distribution family (default: Normal)
+    n_estimators=500,      # boosting iterations
+    learning_rate=0.05,    # outer learning rate
+    num_leaves=31,         # LightGBM tree complexity
+    validation_fraction=0.1,  # auto early stopping split
+)
+model.fit(X_train, y_train, early_stopping_rounds=50)
+
+# Point prediction (distribution mean)
+y_pred = model.predict(X_test)
+
+# Full predicted distribution object
+dist = model.pred_dist(X_test)
+mean = dist.mean()
+var = dist.var()
+cdf_vals = dist.cdf(threshold)
+samples = dist.sample(n=1000)
+
+# Feature importances (K x n_features, one row per distribution param)
+importances = model.feature_importances_
+```
+
+Key fit() parameters: X, y, sample_weight, X_val, y_val,
+early_stopping_rounds, loss_monitor (callable for custom stopping).
+
+### LightningBoostClassifier
+
+Probabilistic classification (binary and multiclass).
+
+```python
+from lightning_boost import LightningBoostClassifier, Bernoulli, k_categorical
+
+# Binary classification (default dist=Bernoulli)
+clf = LightningBoostClassifier(n_estimators=200)
+clf.fit(X_train, y_train)
+probs = clf.predict_proba(X_test)    # shape [n_samples, 2]
+labels = clf.predict(X_test)
+
+# Multiclass (K classes)
+clf = LightningBoostClassifier(dist=k_categorical(5))
+clf.fit(X_train, y_train)
+probs = clf.predict_proba(X_test)    # shape [n_samples, 5]
+```
+
+### LightningBoostSurvival
+
+Survival analysis with right-censored observations.
+
+```python
+from lightning_boost import LightningBoostSurvival, Y_from_censored, Weibull
+
+surv = LightningBoostSurvival(dist=Weibull, n_estimators=300)
+
+# T = times, E = event indicators (1=observed, 0=censored)
+surv.fit(X_train, T_train, E_train)
+
+# Median survival time prediction
+median_times = surv.predict(X_test)
+
+# Full survival distribution
+dist = surv.pred_dist(X_test)
+survival_probs = 1 - dist.cdf(time_points)
+```
+
+Distributions with survival support (logsf): Exponential, LogNormal, Weibull.
+
+## Distributions
+
+All distributions are in `lightning_boost.distributions`.
+
+| Distribution | Parameters | CRPS | Survival |
+|---|---|---|---|
+| Normal | loc, scale | yes | no |
+| LogNormal | mu, sigma | yes | yes |
+| Exponential | rate | yes | yes |
+| Gamma | shape, rate | no | no |
+| Poisson | rate | no | no |
+| Laplace | loc, scale | yes | no |
+| StudentT | df, loc, scale | no | no |
+| Weibull | shape, scale | yes | yes |
+| HalfNormal | scale | yes | no |
+| Cauchy | loc, scale | no | no |
+| Bernoulli | logit | no | no |
+| Categorical | logits | no | no |
+
+Factory functions:
+- `t_fixed_df(df)` -> StudentT subclass with fixed degrees of freedom
+- `k_categorical(K)` -> Categorical subclass for K classes
+- `StudentT3` = `t_fixed_df(3)` (pre-built)
+
+## Scoring Rules
+
+```python
+from lightning_boost import LogScore, CRPScore
+
+# LogScore (default) - negative log-likelihood
+model = LightningBoostRegressor(scoring_rule=LogScore())
+
+# CRPScore - Continuous Ranked Probability Score
+model = LightningBoostRegressor(scoring_rule=CRPScore())
+```
+
+## Evaluation Utilities
+
+```python
+from lightning_boost import (
+    pit_values,
+    calibration_regression,
+    calibration_survival,
+    calibration_error,
+    concordance_index,
+    plot_pit_histogram,       # requires matplotlib
+    plot_calibration_curve,   # requires matplotlib
+)
+
+# PIT calibration check (should be uniform if well-calibrated)
+pits = pit_values(pred_dist, y_test)
+plot_pit_histogram(pits)
+
+# Calibration curve
+expected, observed = calibration_regression(pred_dist, y_test)
+plot_calibration_curve(expected, observed)
+cal_err = calibration_error(expected, observed)
+
+# Survival concordance
+ci = concordance_index(T_test, E_test, pred_dist)
+```
+
+## Common Constructor Parameters
+
+These apply to all three estimators:
+
+- `dist`: Distribution class (default varies by estimator)
+- `n_estimators`: Boosting iterations (default 500)
+- `learning_rate`: Outer learning rate (default 0.05)
+- `minibatch_frac`: Gradient subsampling fraction (default 1.0)
+- `col_sample`: Column subsampling per boosting iteration (default 1.0)
+- `natural_gradient`: Use natural gradient (default True)
+- `num_leaves`: LightGBM leaves per tree (default 31)
+- `max_depth`: Max tree depth, -1=unlimited (default -1)
+- `min_child_samples`: Min samples per leaf (default 20)
+- `subsample`: LightGBM row subsampling per tree (default 1.0)
+- `colsample_bytree`: LightGBM column subsampling per tree (default 1.0)
+- `reg_alpha`: L1 regularization (default 0.0)
+- `reg_lambda`: L2 regularization (default 0.0)
+- `lgbm_params`: Dict of additional LightGBM booster params
+- `validation_fraction`: Auto early-stopping split fraction
+- `random_state`: Random seed
+- `verbose`: Log training progress (default True)
+- `verbose_eval`: Log every N iterations (default 100)
+
+## Staged Predictions
+
+```python
+# Iterate over distributions at each boosting stage
+for stage, dist in enumerate(model.staged_pred_dist(X_test)):
+    nll = -dist.logpdf(y_test).mean()
+```
+
+## Source
+
+- Repository: https://github.com/kschmaus/lightning-boost
+- Docs: https://kschmaus.github.io/lightning-boost/
+- License: Apache-2.0
