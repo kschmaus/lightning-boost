@@ -7,7 +7,7 @@ import mkdocs_gen_files
 nav = mkdocs_gen_files.Nav()
 mod_symbol = '<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code>'
 
-src = Path("lightning_boost")
+src = Path("ngboost_lightning")
 
 for path in sorted(src.rglob("*.py")):
     module_path = path.with_suffix("")

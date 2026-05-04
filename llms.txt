@@ -1,8 +1,8 @@
-# lightning-boost
+# ngboost-lightning
 
 > Natural gradient boosting for probabilistic prediction, powered by LightGBM.
 
-lightning-boost is a Python library that faithfully implements the NGBoost
+ngboost-lightning is a Python library that faithfully implements the NGBoost
 algorithm using LightGBM as the base learner instead of sklearn decision
 stumps, providing up to 13x faster training while producing identical
 probabilistic predictions. It is sklearn-compatible and outputs full
@@ -11,8 +11,8 @@ predictive distributions, not just point estimates.
 ## Install
 
 ```
-pip install lightning-boost
-pip install lightning-boost[plot]  # optional matplotlib support
+pip install ngboost-lightning
+pip install ngboost-lightning[plot]  # optional matplotlib support
 ```
 
 Requires Python >= 3.11.
@@ -26,7 +26,7 @@ All estimators follow the sklearn API (fit/predict/score).
 Probabilistic regression. Outputs a predicted distribution per sample.
 
 ```python
-from lightning_boost import LightningBoostRegressor, Normal
+from ngboost_lightning import LightningBoostRegressor, Normal
 
 model = LightningBoostRegressor(
     dist=Normal,           # distribution family (default: Normal)
@@ -59,7 +59,7 @@ early_stopping_rounds, loss_monitor (callable for custom stopping).
 Probabilistic classification (binary and multiclass).
 
 ```python
-from lightning_boost import LightningBoostClassifier, Bernoulli, k_categorical
+from ngboost_lightning import LightningBoostClassifier, Bernoulli, k_categorical
 
 # Binary classification (default dist=Bernoulli)
 clf = LightningBoostClassifier(n_estimators=200)
@@ -78,7 +78,7 @@ probs = clf.predict_proba(X_test)    # shape [n_samples, 5]
 Survival analysis with right-censored observations.
 
 ```python
-from lightning_boost import LightningBoostSurvival, Y_from_censored, Weibull
+from ngboost_lightning import LightningBoostSurvival, Y_from_censored, Weibull
 
 surv = LightningBoostSurvival(dist=Weibull, n_estimators=300)
 
@@ -97,7 +97,7 @@ Distributions with survival support (logsf): Exponential, LogNormal, Weibull.
 
 ## Distributions
 
-All distributions are in `lightning_boost.distributions`.
+All distributions are in `ngboost_lightning.distributions`.
 
 | Distribution | Parameters | CRPS | Survival |
 |---|---|---|---|
@@ -122,7 +122,7 @@ Factory functions:
 ## Scoring Rules
 
 ```python
-from lightning_boost import LogScore, CRPScore
+from ngboost_lightning import LogScore, CRPScore
 
 # LogScore (default) - negative log-likelihood
 model = LightningBoostRegressor(scoring_rule=LogScore())
@@ -134,7 +134,7 @@ model = LightningBoostRegressor(scoring_rule=CRPScore())
 ## Evaluation Utilities
 
 ```python
-from lightning_boost import (
+from ngboost_lightning import (
     pit_values,
     calibration_regression,
     calibration_survival,
@@ -190,6 +190,6 @@ for stage, dist in enumerate(model.staged_pred_dist(X_test)):
 
 ## Source
 
-- Repository: https://github.com/kschmaus/lightning-boost
-- Docs: https://kschmaus.github.io/lightning-boost/
+- Repository: https://github.com/kschmaus/ngboost-lightning
+- Docs: https://kschmaus.github.io/ngboost-lightning/
 - License: Apache-2.0
